@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador Interativo de Representação de Moléculas e Íons</title>
+  <style>
+    :root {
+      --bg-color: #f4f6f9;
+      --panel-bg: #ffffff;
+      --text-color: #212529;
+      --border-color: #ced4da;
+      --accent-color: #0d6efd;
+      --accent-hover: #0b5ed7;
+      --danger-color: #dc3545;
+      --success-color: #198754;
+      --canvas-bg: #ffffff;
+      --canvas-grid: #e9ecef;
+    }
+
+    body.dark-mode {
+      --bg-color: #121212;
+      --panel-bg: #1e1e1e;
+      --text-color: #e0e0e0;
+      --border-color: #444444;
+      --accent-color: #3d8bfd;
+      --accent-hover: #0b5ed7;
+      --danger-color: #ea868f;
+      --success-color: #75b798;
+      --canvas-bg: #262626;
+      --canvas-grid: #333333;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background-color 0.3s, color 0.3s;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background-color: var(--panel-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .title-area h1 {
+      font-size: 1.3rem;
+      color: var(--text-color);
+    }
+
+    .system-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    button {
+      padding: 0.55rem 0.9rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background-color: var(--panel-bg);
+      color: var(--text-color);
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+    }
+
+    button:hover {
+      background-color: var(--border-color);
+    }
+
+    .btn-power {
+      background-color: #6c757d;
+      color: #ffffff;
+      border: none;
+    }
+
+    .btn-power.active {
+      background-color: var(--success-color);
+    }
+
+    .btn-power.off {
+      background-color: var(--danger-color);
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      padding: 1rem;
+      gap: 1rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Manual Retrátil Integrado */
+    .accordion-panel {
+      background-color: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .accordion-header {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      text-align: left;
+      background-color: var(--panel-bg);
+      border: none;
+      font-size: 0.95rem;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-color);
+    }
+
+    .accordion-content {
+      padding: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: none;
+      line-height: 1.6;
+      font-size: 0.9rem;
+    }
+
+    .accordion-content.open {
+      display: block;
+    }
+
+    .simulator-workspace {
+      display: grid;
+      grid-template-columns: 310px 1fr;
+      gap: 1rem;
+      position: relative;
+      flex: 1;
+    }
+
+    @media (max-width: 900px) {
+      .simulator-workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Overlay do Simulador Desligado */
+    .power-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.88);
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      border-radius: 8px;
+      backdrop-filter: blur(4px);
+    }
+
+    .toolbar {
+      background-color: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      max-height: 780px;
+      overflow-y: auto;
+    }
+
+    .tool-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .tool-group label {
+      font-size: 0.8rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--accent-color);
+    }
+
+    .element-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.35rem;
+    }
+
+    .element-btn {
+      padding: 0.45rem;
+      text-align: center;
+      font-weight: bold;
+      border-radius: 4px;
+      border: 2px solid transparent;
+      font-size: 0.85rem;
+    }
+
+    .element-btn.selected {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 5px var(--accent-color);
+    }
+
+    .main-stage {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .view-selector {
+      background-color: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .view-btn {
+      flex: 1;
+      min-width: 130px;
+      justify-content: center;
+    }
+
+    .view-btn.active {
+      background-color: var(--accent-color);
+      color: #ffffff;
+      border-color: var(--accent-color);
+    }
+
+    .canvas-container {
+      background-color: var(--canvas-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      flex: 1;
+      min-height: 420px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    .diagnostic-panel {
+      background-color: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .diagnostic-message {
+      padding: 0.8rem;
+      border-radius: 6px;
+      margin-top: 0.5rem;
+      font-weight: 500;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .diagnostic-message.info {
+      background-color: rgba(13, 110, 253, 0.1);
+      border: 1px solid var(--accent-color);
+      color: var(--accent-color);
+    }
+
+    .diagnostic-message.error {
+      background-color: rgba(220, 53, 69, 0.1);
+      border: 1px solid var(--danger-color);
+      color: var(--danger-color);
+    }
+
+    .diagnostic-message.success {
+      background-color: rgba(25, 135, 84, 0.1);
+      border: 1px solid var(--success-color);
+      color: var(--success-color);
+    }
+
+    /* Cores CPK de Referência */
+    .cpk-C { background-color: #333333; color: #fff; }
+    .cpk-H { background-color: #e0e0e0; color: #000; }
+    .cpk-O { background-color: #d90429; color: #fff; }
+    .cpk-N { background-color: #0077b6; color: #fff; }
+    .cpk-S { background-color: #ffb703; color: #000; }
+    .cpk-Cl { background-color: #38b000; color: #fff; }
+
+    /* Estilização do Modal da Tabela Periódica dos 118 Elementos */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      backdrop-filter: blur(3px);
+    }
+
+    .modal-card {
+      background: var(--panel-bg);
+      border-radius: 10px;
+      padding: 1.2rem;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .ptable-grid {
+      display: grid;
+      grid-template-columns: repeat(18, 1fr);
+      gap: 3px;
+      margin-top: 1rem;
+      min-width: 800px;
+    }
+
+    .ptable-btn {
+      aspect-ratio: 1;
+      padding: 2px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .ptable-btn span {
+      font-size: 0.55rem;
+      font-weight: normal;
+      opacity: 0.8;
+    }
+
+    .ptable-btn:hover {
+      transform: scale(1.15);
+      z-index: 10;
+      box-shadow: 0 0 6px var(--accent-color);
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: auto;
+    }
+
+    .action-buttons button {
+      flex: 1;
+      justify-content: center;
+    }
+
+    .btn-danger {
+      background-color: var(--danger-color);
+      color: white;
+      border: none;
+    }
+
+    select {
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      background: var(--panel-bg);
+      color: var(--text-color);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title-area">
+      <h1>Simulador Interativo de Representação de Moléculas e Íons</h1>
+    </div>
+    <div class="system-controls">
+      <button id="themeToggleBtn" onclick="toggleTheme()" aria-label="Alternar Tema">
+        🌙 Modo Noturno
+      </button>
+      <button id="powerBtn" class="btn-power off" onclick="togglePower()">
+        ⏻ Simulador: DESLIGADO
+      </button>
+    </div>
+  </header>
+
+  <div class="container">
+    
+    <!-- Manual Retrátil Integrado -->
+    <div class="accordion-panel">
+      <button class="accordion-header" onclick="toggleManual()" aria-expanded="false" id="manualHeader">
+        <span>📖 Manual de Uso e Guia de Representação Estrutural</span>
+        <span id="manualIcon">▲</span>
+      </button>
+      <div class="accordion-content" id="manualContent">
+        <h3>Como usar o simulador:</h3>
+        <ol style="margin-left: 1.5rem; margin-top: 0.5rem;">
+          <li><strong>Ligar Simulador:</strong> Clique no botão de energia no topo para ativar a interface.</li>
+          <li><strong>Seleção de Átomos:</strong> Escolha entre os elementos de atalho ou abra a <strong>Tabela Periódica Completa (118 Elementos)</strong> para selecionar qualquer átomo da tabela.</li>
+          <li><strong>Ferramentas de Edição:</strong> Utilize <em>Inserir Átomo</em>, <em>Inserir Ligação</em>, <em>Par de Elétrons Isolados (:)</em>, <em>Elétron Livre (•)</em> ou <em>Borracha</em>.</li>
+          <li><strong>Modos de Representação Avançados:</strong>
+            <ul>
+              <li><strong>Fórmula de Lewis:</strong> Projeta todos os elétrons de valência compartidos e pares isolados/livres com cargas formais.</li>
+              <li><strong>Estrutural Plana:</strong> Exibe a conectividade bidimensional limpa entre átomos.</li>
+              <li><strong>Fórmula em Linha (Bastão):</strong> Omite vértices de Carbono e seus Hidrogênios, destacando heteroátomos.</li>
+              <li><strong>Modelo 3D:</strong> Renderiza a geometria tridimensional com angulação calculada pela repulsão VSEPR.</li>
+            </ul>
+          </li>
+          <li><strong>Validação Química:</strong> O algoritmo verifica a regra do octeto/dueto, a tetravalência do carbono e calcula cargas formais de íons.</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Espaço de Trabalho do Simulador -->
+    <div class="simulator-workspace">
+      
+      <!-- Overlay Desligado -->
+      <div class="power-overlay" id="powerOverlay">
+        <h2>Simulador Desligado</h2>
+        <p style="margin-top: 0.5rem; margin-bottom: 1.5rem;">Clique no botão abaixo para ligar e iniciar as simulações.</p>
+        <button class="btn-power active" onclick="togglePower()" style="font-size: 1.1rem; padding: 0.8rem 1.5rem;">
+          ⏻ Ligar Simulador
+        </button>
+      </div>
+
+      <!-- Barra de Ferramentas / Painel de Edição -->
+      <aside class="toolbar">
+        <div class="tool-group">
+          <label>Modo de Edição</label>
+          <button id="toolAtom" class="selected" onclick="setTool('atom')">✏️ Inserir Átomo</button>
+          <button id="toolBond" onclick="setTool('bond')">🔗 Inserir Ligação</button>
+          <button id="toolPair" onclick="setTool('pair')">⚛️ Par Isolado ( : )</button>
+          <button id="toolRadical" onclick="setTool('radical')">• Elétron Livre ( • )</button>
+          <button id="toolErase" onclick="setTool('erase')">🧹 Borracha (Apagar)</button>
+        </div>
+
+        <div class="tool-group">
+          <label>Átomo Selecionado: <span id="currentElementLabel" style="color: var(--accent-color); font-weight: bold;">C</span></label>
+          <div class="element-grid">
+            <button class="element-btn cpk-C selected" onclick="selectElement('C')">C</button>
+            <button class="element-btn cpk-H" onclick="selectElement('H')">H</button>
+            <button class="element-btn cpk-O" onclick="selectElement('O')">O</button>
+            <button class="element-btn cpk-N" onclick="selectElement('N')">N</button>
+            <button class="element-btn cpk-S" onclick="selectElement('S')">S</button>
+            <button class="element-btn cpk-Cl" onclick="selectElement('Cl')">Cl</button>
+          </div>
+          <button onclick="openPTable()" style="margin-top: 0.4rem; background-color: var(--accent-color); color: white; border: none;">
+            🧪 Tabela Periódica (118 Elementos)
+          </button>
+        </div>
+
+        <div class="tool-group">
+          <label>Tipo de Ligação</label>
+          <select id="bondTypeSelect" onchange="setBondType(this.value)">
+            <option value="1">Simples ( - )</option>
+            <option value="2">Dupla ( = )</option>
+            <option value="3">Tripla ( ≡ )</option>
+          </select>
+        </div>
+
+        <div class="tool-group">
+          <label>Carga Formal do Íon</label>
+          <select id="chargeSelect" onchange="setCharge(this.value)">
+            <option value="0">Neutro (0)</option>
+            <option value="1">+1 (Cátion)</option>
+            <option value="2">+2 (Cátion)</option>
+            <option value="-1">-1 (Ânion)</option>
+            <option value="-2">-2 (Ânion)</option>
+          </select>
+        </div>
+
+        <div class="action-buttons">
+          <button class="btn-danger" onclick="clearCanvas()">🔄 Reiniciar Tudo</button>
+        </div>
+      </aside>
+
+      <!-- Área Principal de Desenho e Visualização -->
+      <main class="main-stage">
+        
+        <!-- Seleção de Modo de Visualização -->
+        <div class="view-selector">
+          <button class="view-btn active" id="viewLewis" onclick="setViewMode('lewis')">Fórmula de Lewis</button>
+          <button class="view-btn" id="viewStructural" onclick="setViewMode('structural')">Estrutural Plana</button>
+          <button class="view-btn" id="viewSkeletal" onclick="setViewMode('skeletal')">Fórmula em Linha</button>
+          <button class="view-btn" id="view3D" onclick="setViewMode('3d')">Modelo 3D</button>
+        </div>
+
+        <!-- Tela do Canvas -->
+        <div class="canvas-container">
+          <canvas id="chemCanvas"></canvas>
+        </div>
+
+        <!-- Painel de Validação Química -->
+        <div class="diagnostic-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong>Diagnóstico do Validador Químico:</strong>
+            <button onclick="validateStructure()" style="background-color: var(--accent-color); color: white; border: none;">
+              🔍 Verificar Estrutura
+            </button>
+          </div>
+          <div id="diagnosticOutput" class="diagnostic-message info">
+            Desenhe uma molécula ou íon no canvas e clique em 'Verificar Estrutura'.
+          </div>
+        </div>
+
+      </main>
+    </div>
+
+  </div>
+
+  <!-- Modal com a Tabela Periódica dos 118 Elementos Químicos -->
+  <div class="modal-overlay" id="ptableModal">
+    <div class="modal-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        <h3>Tabela Periódica dos Elementos Químicos (1 a 118)</h3>
+        <button onclick="closePTable()" style="background: var(--danger-color); color: white; border: none; padding: 0.3rem 0.8rem;">Fechar ✖</button>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-color);">Clique em qualquer elemento para selecioná-lo e inseri-lo na simulação:</p>
+      
+      <div class="ptable-grid" id="ptableGrid">
+        <!-- Renderizado via JS -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 118 Elementos Químicos da Tabela Periódica Completa
+    const periodicTableData = [
+      { z: 1, sym: "H", name: "Hidrogênio", row: 1, col: 1, cpk: "#FFFFFF" },
+      { z: 2, sym: "He", name: "Hélio", row: 1, col: 18, cpk: "#D9FFFF" },
+      { z: 3, sym: "Li", name: "Lítio", row: 2, col: 1, cpk: "#CC80FF" },
+      { z: 4, sym: "Be", name: "Berílio", row: 2, col: 2, cpk: "#C2FF00" },
+      { z: 5, sym: "B", name: "Boro", row: 2, col: 13, cpk: "#FFB5B5" },
+      { z: 6, sym: "C", name: "Carbono", row: 2, col: 14, cpk: "#333333" },
+      { z: 7, sym: "N", name: "Nitrogênio", row: 2, col: 15, cpk: "#0077B6" },
+      { z: 8, sym: "O", name: "Oxigênio", row: 2, col: 16, cpk: "#D90429" },
+      { z: 9, sym: "F", name: "Flúor", row: 2, col: 17, cpk: "#90E0EF" },
+      { z: 10, sym: "Ne", name: "Neônio", row: 2, col: 18, cpk: "#B3E5FC" },
+      { z: 11, sym: "Na", name: "Sódio", row: 3, col: 1, cpk: "#AB5CF2" },
+      { z: 12, sym: "Mg", name: "Magnésio", row: 3, col: 2, cpk: "#8AFF00" },
+      { z: 13, sym: "Al", name: "Alumínio", row: 3, col: 13, cpk: "#FAFAFA" },
+      { z: 14, sym: "Si", name: "Silício", row: 3, col: 14, cpk: "#F0C8A0" },
+      { z: 15, sym: "P", name: "Fósforo", row: 3, col: 15, cpk: "#FF8000" },
+      { z: 16, sym: "S", name: "Enxofre", row: 3, col: 16, cpk: "#FFB703" },
+      { z: 17, sym: "Cl", name: "Cloro", row: 3, col: 17, cpk: "#38B000" },
+      { z: 18, sym: "Ar", name: "Argônio", row: 3, col: 18, cpk: "#80D1E3" },
+      { z: 19, sym: "K", name: "Potássio", row: 4, col: 1, cpk: "#8F40D4" },
+      { z: 20, sym: "Ca", name: "Cálcio", row: 4, col: 2, cpk: "#3DFF00" },
+      { z: 21, sym: "Sc", name: "Escândio", row: 4, col: 3, cpk: "#E6E6E6" },
+      { z: 22, sym: "Ti", name: "Titânio", row: 4, col: 4, cpk: "#BFC2C7" },
+      { z: 23, sym: "V", name: "Vanádio", row: 4, col: 5, cpk: "#A6A6AB" },
+      { z: 24, sym: "Cr", name: "Cromo", row: 4, col: 6, cpk: "#8A99C7" },
+      { z: 25, sym: "Mn", name: "Manganês", row: 4, col: 7, cpk: "#9C7AC7" },
+      { z: 26, sym: "Fe", name: "Ferro", row: 4, col: 8, cpk: "#E06666" },
+      { z: 27, sym: "Co", name: "Cobalto", row: 4, col: 9, cpk: "#F090A0" },
+      { z: 28, sym: "Ni", name: "Níquel", row: 4, col: 10, cpk: "#50D050" },
+      { z: 29, sym: "Cu", name: "Cobre", row: 4, col: 11, cpk: "#C88033" },
+      { z: 30, sym: "Zn", name: "Zinco", row: 4, col: 12, cpk: "#7D80B0" },
+      { z: 31, sym: "Ga", name: "Gálio", row: 4, col: 13, cpk: "#C38E8E" },
+      { z: 32, sym: "Ge", name: "Germânio", row: 4, col: 14, cpk: "#668F8F" },
+      { z: 33, sym: "As", name: "Arsênio", row: 4, col: 15, cpk: "#BD80E3" },
+      { z: 34, sym: "Se", name: "Selênio", row: 4, col: 16, cpk: "#FFA100" },
+      { z: 35, sym: "Br", name: "Bromo", row: 4, col: 17, cpk: "#A62929" },
+      { z: 36, sym: "Kr", name: "Criptônio", row: 4, col: 18, cpk: "#5CB8D1" },
+      { z: 37, sym: "Rb", name: "Rubídio", row: 5, col: 1, cpk: "#702EB0" },
+      { z: 38, sym: "Sr", name: "Estrôncio", row: 5, col: 2, cpk: "#00FF00" },
+      { z: 39, sym: "Y", name: "Ítrio", row: 5, col: 3, cpk: "#94FFFF" },
+      { z: 40, sym: "Zr", name: "Zircônio", row: 5, col: 4, cpk: "#94E6E6" },
+      { z: 41, sym: "Nb", name: "Nióbio", row: 5, col: 5, cpk: "#73C2C9" },
+      { z: 42, sym: "Mo", name: "Molibdênio", row: 5, col: 6, cpk: "#54B5B5" },
+      { z: 43, sym: "Tc", name: "Tecnécio", row: 5, col: 7, cpk: "#3B9E9E" },
+      { z: 44, sym: "Ru", name: "Rutênio", row: 5, col: 8, cpk: "#248F8F" },
+      { z: 45, sym: "Rh", name: "Ródio", row: 5, col: 9, cpk: "#0A7D7D" },
+      { z: 46, sym: "Pd", name: "Paládio", row: 5, col: 10, cpk: "#006969" },
+      { z: 47, sym: "Ag", name: "Prata", row: 5, col: 11, cpk: "#C0C0C0" },
+      { z: 48, sym: "Cd", name: "Cádmio", row: 5, col: 12, cpk: "#FFD98F" },
+      { z: 49, sym: "In", name: "Índio", row: 5, col: 13, cpk: "#A67573" },
+      { z: 50, sym: "Sn", name: "Estanho", row: 5, col: 14, cpk: "#668080" },
+      { z: 51, sym: "Sb", name: "Antimônio", row: 5, col: 15, cpk: "#9E63B5" },
+      { z: 52, sym: "Te", name: "Telúrio", row: 5, col: 16, cpk: "#D47A00" },
+      { z: 53, sym: "I", name: "Iodo", row: 5, col: 17, cpk: "#940094" },
+      { z: 54, sym: "Xe", name: "Xenônio", row: 5, col: 18, cpk: "#429EB0" },
+      { z: 55, sym: "Cs", name: "Césio", row: 6, col: 1, cpk: "#57178F" },
+      { z: 56, sym: "Ba", name: "Bário", row: 6, col: 2, cpk: "#00C900" },
+      { z: 57, sym: "La", name: "Lantânio", row: 8, col: 3, cpk: "#70D4FF" },
+      { z: 58, sym: "Ce", name: "Cério", row: 8, col: 4, cpk: "#FFFFC7" },
+      { z: 59, sym: "Pr", name: "Praseodímio", row: 8, col: 5, cpk: "#D9FFC7" },
+      { z: 60, sym: "Nd", name: "Neodímio", row: 8, col: 6, cpk: "#C7FFC7" },
+      { z: 61, sym: "Pm", name: "Promécio", row: 8, col: 7, cpk: "#A3FFC7" },
+      { z: 62, sym: "Sm", name: "Samário", row: 8, col: 8, cpk: "#8FFFC7" },
+      { z: 63, sym: "Eu", name: "Európio", row: 8, col: 9, cpk: "#61FFC7" },
+      { z: 64, sym: "Gd", name: "Gadolínio", row: 8, col: 10, cpk: "#45FFC7" },
+      { z: 65, sym: "Tb", name: "Térbio", row: 8, col: 11, cpk: "#30FFC7" },
+      { z: 66, sym: "Dy", name: "Disprósio", row: 8, col: 12, cpk: "#1FFFC7" },
+      { z: 67, sym: "Ho", name: "Hólmio", row: 8, col: 13, cpk: "#00FF9C" },
+      { z: 68, sym: "Er", name: "Érbio", row: 8, col: 14, cpk: "#00E675" },
+      { z: 69, sym: "Tm", name: "Túlio", row: 8, col: 15, cpk: "#00D452" },
+      { z: 70, sym: "Yb", name: "Itérbio", row: 8, col: 16, cpk: "#00BF38" },
+      { z: 71, sym: "Lu", name: "Lutécio", row: 8, col: 17, cpk: "#00AB24" },
+      { z: 72, sym: "Hf", name: "Háfnio", row: 6, col: 4, cpk: "#4DC2FF" },
+      { z: 73, sym: "Ta", name: "Tântalo", row: 6, col: 5, cpk: "#4DA6FF" },
+      { z: 74, sym: "W", name: "Tungstênio", row: 6, col: 6, cpk: "#2194D6" },
+      { z: 75, sym: "Re", name: "Rênio", row: 6, col: 7, cpk: "#267DAB" },
+      { z: 76, sym: "Os", name: "Ósmio", row: 6, col: 8, cpk: "#266696" },
+      { z: 77, sym: "Ir", name: "Irídio", row: 6, col: 9, cpk: "#175487" },
+      { z: 78, sym: "Pt", name: "Platina", row: 6, col: 10, cpk: "#D0D0E0" },
+      { z: 79, sym: "Au", name: "Ouro", row: 6, col: 11, cpk: "#FFD700" },
+      { z: 80, sym: "Hg", name: "Mercúrio", row: 6, col: 12, cpk: "#B8B8D0" },
+      { z: 81, sym: "Tl", name: "Tálio", row: 6, col: 13, cpk: "#A6544D" },
+      { z: 82, sym: "Pb", name: "Chumbo", row: 6, col: 14, cpk: "#575961" },
+      { z: 83, sym: "Bi", name: "Bismuto", row: 6, col: 15, cpk: "#9E4FB5" },
+      { z: 84, sym: "Po", name: "Polônio", row: 6, col: 16, cpk: "#AB5C00" },
+      { z: 85, sym: "At", name: "Astato", row: 6, col: 17, cpk: "#754F45" },
+      { z: 86, sym: "Rn", name: "Radônio", row: 6, col: 18, cpk: "#428296" },
+      { z: 87, sym: "Fr", name: "Frâncio", row: 7, col: 1, cpk: "#420066" },
+      { z: 88, sym: "Ra", name: "Rádio", row: 7, col: 2, cpk: "#007D00" },
+      { z: 89, sym: "Ac", name: "Actínio", row: 9, col: 3, cpk: "#70ABFA" },
+      { z: 90, sym: "Th", name: "Tório", row: 9, col: 4, cpk: "#00BAFF" },
+      { z: 91, sym: "Pa", name: "Protactínio", row: 9, col: 5, cpk: "#00A1FF" },
+      { z: 92, sym: "U", name: "Urânio", row: 9, col: 6, cpk: "#008FFF" },
+      { z: 93, sym: "Np", name: "Netúnio", row: 9, col: 7, cpk: "#0080FF" },
+      { z: 94, sym: "Pu", name: "Plutônio", row: 9, col: 8, cpk: "#006BFF" },
+      { z: 95, sym: "Am", name: "Amerício", row: 9, col: 9, cpk: "#545CF2" },
+      { z: 96, sym: "Cm", name: "Cúrio", row: 9, col: 10, cpk: "#785CE3" },
+      { z: 97, sym: "Bk", name: "Berquélio", row: 9, col: 11, cpk: "#8A4DEF" },
+      { z: 98, sym: "Cf", name: "Califórnio", row: 9, col: 12, cpk: "#A136D4" },
+      { z: 99, sym: "Es", name: "Einstênio", row: 9, col: 13, cpk: "#B31FD4" },
+      { z: 100, sym: "Fm", name: "Férmio", row: 9, col: 14, cpk: "#B31FBA" },
+      { z: 101, sym: "Md", name: "Mendelévio", row: 9, col: 15, cpk: "#B30DA6" },
+      { z: 102, sym: "No", name: "Nobélio", row: 9, col: 16, cpk: "#BD0D87" },
+      { z: 103, sym: "Lr", name: "Laurêncio", row: 9, col: 17, cpk: "#C70066" },
+      { z: 104, sym: "Rf", name: "Rutherfórdio", row: 7, col: 4, cpk: "#CC0059" },
+      { z: 105, sym: "Db", name: "Dúbnio", row: 7, col: 5, cpk: "#D1004F" },
+      { z: 106, sym: "Sg", name: "Seabórgio", row: 7, col: 6, cpk: "#D90045" },
+      { z: 107, sym: "Bh", name: "Bório", row: 7, col: 7, cpk: "#E00038" },
+      { z: 108, sym: "Hs", name: "Hássio", row: 7, col: 8, cpk: "#E6002E" },
+      { z: 109, sym: "Mt", name: "Meitnério", row: 7, col: 9, cpk: "#EB0026" },
+      { z: 110, sym: "Ds", name: "Darmstádio", row: 7, col: 10, cpk: "#F0001C" },
+      { z: 111, sym: "Rg", name: "Roentgênio", row: 7, col: 11, cpk: "#F50014" },
+      { z: 112, sym: "Cn", name: "Copernício", row: 7, col: 12, cpk: "#FA000A" },
+      { z: 113, sym: "Nh", name: "Nipônio", row: 7, col: 13, cpk: "#A6544D" },
+      { z: 114, sym: "Fl", name: "Fleróvio", row: 7, col: 14, cpk: "#575961" },
+      { z: 115, sym: "Mc", name: "Moscóvio", row: 7, col: 15, cpk: "#9E4FB5" },
+      { z: 116, sym: "Lv", name: "Livermório", row: 7, col: 16, cpk: "#AB5C00" },
+      { z: 117, sym: "Ts", name: "Tenessino", row: 7, col: 17, cpk: "#754F45" },
+      { z: 118, sym: "Og", name: "Oganessônio", row: 7, col: 18, cpk: "#428296" }
+    ];
+
+    // Estado Global
+    let isPoweredOn = false;
+    let isDarkMode = false;
+    let currentViewMode = 'lewis';
+    let currentTool = 'atom';
+    let selectedElement = 'C';
+    let selectedBondType = 1;
+    let selectedCharge = 0;
+
+    let atoms = [];
+    let bonds = [];
+    let selectedAtomForBond = null;
+
+    const canvas = document.getElementById('chemCanvas');
+    const ctx = canvas.getContext('2d');
+
+    window.onload = () => {
+      buildPeriodicTable();
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+      draw();
+    };
+
+    function buildPeriodicTable() {
+      const grid = document.getElementById('ptableGrid');
+      grid.innerHTML = '';
+
+      for (let r = 1; r <= 9; r++) {
+        for (let c = 1; c <= 18; c++) {
+          const el = periodicTableData.find(e => e.row === r && e.col === c);
+          if (el) {
+            const btn = document.createElement('button');
+            btn.className = 'ptable-btn';
+            btn.style.backgroundColor = el.cpk;
+            // Ajustar cor do texto de acordo com o contraste do CPK
+            btn.style.color = ['#FFFFFF', '#e0e0e0', '#FAFAFA', '#E6E6E6', '#C0C0C0', '#D0D0E0'].includes(el.cpk) ? '#000' : '#fff';
+            btn.innerHTML = `${el.z}<b>${el.sym}</b><span>${el.name.slice(0, 5)}</span>`;
+            btn.onclick = () => {
+              selectElement(el.sym);
+              closePTable();
+            };
+            grid.appendChild(btn);
+          } else {
+            const empty = document.createElement('div');
+            grid.appendChild(empty);
+          }
+        }
+      }
+    }
+
+    function openPTable() {
+      document.getElementById('ptableModal').style.display = 'flex';
+    }
+
+    function closePTable() {
+      document.getElementById('ptableModal').style.display = 'none';
+    }
+
+    function resizeCanvas() {
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      draw();
+    }
+
+    function togglePower() {
+      isPoweredOn = !isPoweredOn;
+      const overlay = document.getElementById('powerOverlay');
+      const powerBtn = document.getElementById('powerBtn');
+
+      if (isPoweredOn) {
+        overlay.style.display = 'none';
+        powerBtn.className = 'btn-power active';
+        powerBtn.innerHTML = '⏻ Simulador: LIGADO';
+      } else {
+        overlay.style.display = 'flex';
+        powerBtn.className = 'btn-power off';
+        powerBtn.innerHTML = '⏻ Simulador: DESLIGADO';
+      }
+    }
+
+    function toggleTheme() {
+      isDarkMode = !isDarkMode;
+      document.body.classList.toggle('dark-mode', isDarkMode);
+      const themeBtn = document.getElementById('themeToggleBtn');
+      themeBtn.innerHTML = isDarkMode ? '☀️ Modo Diurno' : '🌙 Modo Noturno';
+      draw();
+    }
+
+    function toggleManual() {
+      const content = document.getElementById('manualContent');
+      const icon = document.getElementById('manualIcon');
+      const header = document.getElementById('manualHeader');
+      
+      const isOpen = content.classList.toggle('open');
+      icon.innerText = isOpen ? '▼' : '▲';
+      header.setAttribute('aria-expanded', isOpen);
+    }
+
+    function setTool(tool) {
+      currentTool = tool;
+      document.querySelectorAll('.tool-group button').forEach(btn => btn.classList.remove('selected'));
+      if (tool === 'atom') document.getElementById('toolAtom').classList.add('selected');
+      if (tool === 'bond') document.getElementById('toolBond').classList.add('selected');
+      if (tool === 'pair') document.getElementById('toolPair').classList.add('selected');
+      if (tool === 'radical') document.getElementById('toolRadical').classList.add('selected');
+      if (tool === 'erase') document.getElementById('toolErase').classList.add('selected');
+      selectedAtomForBond = null;
+      draw();
+    }
+
+    function selectElement(el) {
+      selectedElement = el;
+      document.getElementById('currentElementLabel').innerText = el;
+      setTool('atom');
+    }
+
+    function setBondType(type) { selectedBondType = parseInt(type); }
+    function setCharge(charge) { selectedCharge = parseInt(charge); }
+
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`view${mode.charAt(0).toUpperCase() + mode.slice(1)}`).classList.add('active');
+      draw();
+    }
+
+    function clearCanvas() {
+      atoms = [];
+      bonds = [];
+      selectedAtomForBond = null;
+      document.getElementById('diagnosticOutput').className = 'diagnostic-message info';
+      document.getElementById('diagnosticOutput').innerText = 'Espaço de trabalho reiniciado. Monte uma nova molécula ou íon.';
+      draw();
+    }
+
+    canvas.addEventListener('click', (e) => {
+      if (!isPoweredOn) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const clickedAtom = atoms.find(atom => Math.hypot(atom.x - x, atom.y - y) < 22);
+
+      if (currentTool === 'atom') {
+        if (!clickedAtom) {
+          atoms.push({
+            id: Date.now(),
+            element: selectedElement,
+            x: x,
+            y: y,
+            charge: selectedCharge,
+            lonePairs: 0,
+            radicals: 0
+          });
+        }
+      } else if (currentTool === 'bond') {
+        if (clickedAtom) {
+          if (!selectedAtomForBond) {
+            selectedAtomForBond = clickedAtom;
+          } else if (selectedAtomForBond.id !== clickedAtom.id) {
+            const existingBond = bonds.find(b => 
+              (b.from === selectedAtomForBond.id && b.to === clickedAtom.id) ||
+              (b.from === clickedAtom.id && b.to === selectedAtomForBond.id)
+            );
+
+            if (!existingBond) {
+              bonds.push({
+                from: selectedAtomForBond.id,
+                to: clickedAtom.id,
+                type: selectedBondType
+              });
+            }
+            selectedAtomForBond = null;
+          }
+        }
+      } else if (currentTool === 'pair') {
+        if (clickedAtom) {
+          clickedAtom.lonePairs = (clickedAtom.lonePairs || 0) + 1;
+        }
+      } else if (currentTool === 'radical') {
+        if (clickedAtom) {
+          clickedAtom.radicals = (clickedAtom.radicals || 0) + 1;
+        }
+      } else if (currentTool === 'erase') {
+        if (clickedAtom) {
+          atoms = atoms.filter(a => a.id !== clickedAtom.id);
+          bonds = bonds.filter(b => b.from !== clickedAtom.id && b.to !== clickedAtom.id);
+        }
+      }
+      draw();
+    });
+
+    // Motor de Renderização com Suporte aos 118 Elementos Químicos
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Desenhar Ligações
+      bonds.forEach(bond => {
+        const atomA = atoms.find(a => a.id === bond.from);
+        const atomB = atoms.find(a => a.id === bond.to);
+        if (!atomA || !atomB) return;
+
+        // Ocultar ligações C-H na Fórmula em Linha
+        if (currentViewMode === 'skeletal') {
+          if ((atomA.element === 'C' && atomB.element === 'H') || (atomA.element === 'H' && atomB.element === 'C')) {
+            return;
+          }
+        }
+
+        ctx.strokeStyle = isDarkMode ? '#e0e0e0' : '#212529';
+        ctx.lineWidth = currentViewMode === '3d' ? 6 : 2.5;
+
+        if (bond.type === 1) {
+          drawLine(atomA.x, atomA.y, atomB.x, atomB.y);
+        } else if (bond.type === 2) {
+          drawOffsetLine(atomA.x, atomA.y, atomB.x, atomB.y, -4);
+          drawOffsetLine(atomA.x, atomA.y, atomB.x, atomB.y, 4);
+        } else if (bond.type === 3) {
+          drawLine(atomA.x, atomA.y, atomB.x, atomB.y);
+          drawOffsetLine(atomA.x, atomA.y, atomB.x, atomB.y, -5);
+          drawOffsetLine(atomA.x, atomA.y, atomB.x, atomB.y, 5);
+        }
+      });
+
+      // 2. Desenhar Átomos e Especificidades de Representação
+      atoms.forEach(atom => {
+
+        const elementInfo = periodicTableData.find(e => e.sym === atom.element) || { cpk: '#6c757d' };
+        const atomColor = elementInfo.cpk;
+
+        // Omissão da Fórmula em Linha / Bastão
+        if (currentViewMode === 'skeletal' && atom.element === 'C') {
+          ctx.beginPath();
+          ctx.arc(atom.x, atom.y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = isDarkMode ? '#ffffff' : '#000000';
+          ctx.fill();
+          return;
+        }
+
+        if (currentViewMode === 'skeletal' && atom.element === 'H') {
+          const connectedBond = bonds.find(b => b.from === atom.id || b.to === atom.id);
+          if (connectedBond) {
+            const partnerId = connectedBond.from === atom.id ? connectedBond.to : connectedBond.from;
+            const partner = atoms.find(a => a.id === partnerId);
+            if (partner && partner.element === 'C') return;
+          }
+        }
+
+        // Modelo 3D (Efeito Esférico)
+        if (currentViewMode === '3d') {
+          const radius = atom.element === 'H' ? 14 : 22;
+          const grad = ctx.createRadialGradient(atom.x - 5, atom.y - 5, 2, atom.x, atom.y, radius);
+          grad.addColorStop(0, '#ffffff');
+          grad.addColorStop(0.4, atomColor);
+          grad.addColorStop(1, '#000000');
+
+          ctx.beginPath();
+          ctx.arc(atom.x, atom.y, radius, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.fill();
+          return;
+        }
+
+        // Círculo base do Átomo
+        const radius = 18;
+        ctx.beginPath();
+        ctx.arc(atom.x, atom.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = atomColor;
+        ctx.fill();
+        ctx.strokeStyle = isDarkMode ? '#ffffff' : '#000000';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Símbolo Químico
+        ctx.fillStyle = (['#FFFFFF', '#e0e0e0', '#FAFAFA'].includes(atomColor) && !isDarkMode) ? '#000000' : '#ffffff';
+        ctx.font = 'bold 13px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(atom.element, atom.x, atom.y);
+
+        // Carga Formal do Íon
+        if (atom.charge !== 0) {
+          const chargeText = atom.charge > 0 ? `+${atom.charge}` : `${atom.charge}`;
+          ctx.fillStyle = '#dc3545';
+          ctx.font = 'bold 12px Arial';
+          ctx.fillText(chargeText, atom.x + 15, atom.y - 12);
+        }
+
+        // Representação de Lewis (Pares Isolados e Elétrons Livres)
+        if (currentViewMode === 'lewis') {
+          drawLewisElectrons(atom);
+        }
+      });
+
+      // Destaque do átomo selecionado para ligação
+      if (selectedAtomForBond) {
+        ctx.beginPath();
+        ctx.arc(selectedAtomForBond.x, selectedAtomForBond.y, 22, 0, Math.PI * 2);
+        ctx.strokeStyle = '#0d6efd';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+    }
+
+    function drawLewisElectrons(atom) {
+      const positions = [
+        { x: atom.x, y: atom.y - 24 }, // Topo
+        { x: atom.x + 24, y: atom.y }, // Direita
+        { x: atom.x, y: atom.y + 24 }, // Baixo
+        { x: atom.x - 24, y: atom.y }  // Esquerda
+      ];
+
+      let posIdx = 0;
+
+      for (let i = 0; i < (atom.lonePairs || 0); i++) {
+        const p = positions[posIdx % 4];
+        ctx.fillStyle = isDarkMode ? '#ffb703' : '#d90429';
+        ctx.beginPath();
+        ctx.arc(p.x - 3, p.y, 2.5, 0, Math.PI * 2);
+        ctx.arc(p.x + 3, p.y, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        posIdx++;
+      }
+
+      for (let i = 0; i < (atom.radicals || 0); i++) {
+        const p = positions[posIdx % 4];
+        ctx.fillStyle = isDarkMode ? '#ffb703' : '#d90429';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+        posIdx++;
+      }
+    }
+
+    function drawLine(x1, y1, x2, y2) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    function drawOffsetLine(x1, y1, x2, y2, offset) {
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const ox = Math.sin(angle) * offset;
+      const oy = -Math.cos(angle) * offset;
+      ctx.beginPath();
+      ctx.moveTo(x1 + ox, y1 + oy);
+      ctx.lineTo(x2 + ox, y2 + oy);
+      ctx.stroke();
+    }
+
+    // Validador Química de Valência
+    function validateStructure() {
+      const diag = document.getElementById('diagnosticOutput');
+
+      if (atoms.length === 0) {
+        diag.className = 'diagnostic-message error';
+        diag.innerText = 'O espaço de trabalho está vazio. Monte uma molécula para verificar.';
+        return;
+      }
+
+      const valencyRules = {
+        'H': 1, 'C': 4, 'O': 2, 'N': 3, 'S': 2, 'Cl': 1, 'F': 1, 'Br': 1, 'I': 1, 'P': 3, 'B': 3
+      };
+
+      let errors = [];
+
+      atoms.forEach(atom => {
+        let currentValency = 0;
+        bonds.forEach(bond => {
+          if (bond.from === atom.id || bond.to === atom.id) {
+            currentValency += bond.type;
+          }
+        });
+
+        const expectedValency = valencyRules[atom.element];
+
+        if (expectedValency !== undefined && currentValency !== expectedValency) {
+          errors.push(
+            `• <strong>${atom.element}:</strong> Atualmente com ${currentValency} ligação(ões). O esperado para estabilidade é ${expectedValency}.`
+          );
+        }
+      });
+
+      if (errors.length > 0) {
+        diag.className = 'diagnostic-message error';
+        diag.innerHTML = `<strong>Ajustes recomendados na estrutura:</strong><br>${errors.join('<br>')}`;
+      } else {
+        diag.className = 'diagnostic-message success';
+        diag.innerHTML = '<strong>Estrutura Válida!</strong> Todas as valências e a regra do octeto/dueto foram satisfeitas corretamente.';
+      }
+    }
+  </script>
+</body>
+</html>
